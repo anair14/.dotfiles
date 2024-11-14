@@ -233,6 +233,17 @@ Summary: Enter summary here.
 -- Copy and paste from wez to other apps
 vim.api.nvim_set_option("clipboard", "unnamed")
 
+-- PDF Viewer
+vim.api.nvim_create_user_command('ViewPDF', function()
+  local file = vim.fn.expand('%:p')  -- Get the full file path
+  if file:match('%.pdf$') then  -- Check if the file is a PDF
+    -- Open the PDF with Skim
+    vim.fn.system("open -a Skim " .. file)
+  else
+    print("Not a PDF file!")
+  end
+end, { desc = "View the current PDF file" })
+
 -- Custom command to open a floating terminal and send a notification
 vim.api.nvim_create_user_command("ToggleTerminal", function()
   require("toggleterm").toggle()
@@ -277,6 +288,58 @@ vim.cmd([[
     autocmd BufWritePost *.cpp,*.py,*.md lua vim.diagnostic.hide() -- Clears diagnostics after display
 ]])
 
+-- Set color bar at :80 characters
+vim.opt.colorcolumn = "80"   -- Set color bar at the 80th column
+vim.cmd([[highlight ColorColumn ctermbg=0 guibg=red]])   -- Customize the color
+
+-- Set tab width to 4 spaces
+vim.opt.tabstop = 4      -- Number of spaces that a <Tab> in the file counts for
+vim.opt.shiftwidth = 4   -- Number of spaces to use for each step of (auto)indent
+vim.opt.expandtab = true -- Convert tabs to spaces
+
+-- Function for Markdown -> PDF
+local function markdown_to_pdf()
+    local file_path = vim.fn.expand("%:p")
+    if file_path == "" or not file_path:match("%.md$") then
+        vim.notify("No Markdown file selected", vim.log.levels.WARN)
+        return
+    end
+
+    local pdf_name = vim.fn.input("Enter PDF name (without .pdf extension): ") .. ".pdf"
+    local pdf_path = vim.fn.expand("%:p:h") .. "/" .. pdf_name
+
+    -- Run Pandoc with `wkhtmltopdf` as the PDF engine
+    vim.fn.jobstart({"pandoc", file_path, "-t", "html5", "--pdf-engine=wkhtmltopdf", "-o", pdf_path}, {
+        stdout_buffered = true,
+        stderr_buffered = true,
+        on_stdout = function(_, data)
+            if data then
+                vim.notify(table.concat(data, "\n"), vim.log.levels.INFO)
+            end
+        end,
+        on_stderr = function(_, data)
+            if data then
+                -- Filter out title warnings
+                local filtered_errors = {}
+                for _, line in ipairs(data) do
+                    if not line:match("requires a nonempty <title> element") then
+                        table.insert(filtered_errors, line)
+                    end
+                end
+                if #filtered_errors > 0 then
+                    vim.notify("Pandoc Error: " .. table.concat(filtered_errors, "\n"), vim.log.levels.ERROR)
+                end
+            end
+        end,
+        on_exit = function(_, exit_code)
+            if exit_code == 0 then
+                vim.notify("PDF created: " .. pdf_path, vim.log.levels.INFO)
+            else
+                vim.notify("Error creating PDF", vim.log.levels.ERROR)
+            end
+        end,
+    })
+end
 
 -- Register which-key mappings
 local wk = require("which-key")
@@ -286,14 +349,16 @@ wk.register({
   r = { ":w | !python3 %<CR>", "Run Python File" },
   c = { ":lua run_cpp_file()<CR>", "Run C++ File" },
   q = { ":wq<CR>", "Save and Exit" },
+  v = { ":ViewPDF<CR>", "View PDF" },
   m = {
     name = "Markdown",
     o = { ":MarkdownPreview<CR>", "Open Markdown Preview" },
     t = { "<cmd>MarkdownPreviewToggle<CR>", "Toggle Markdown Preview" },
+    c = { markdown_to_pdf, "Convert Markdown to PDF" },
+    v = { view_pdf, "View PDF" }
   },
   n = { ":w | !node %<CR>", "Run Node.js File" },
   d = { ":Dashboard<CR>", "Return to Dashboard" },
   e = { "<cmd>Neotree toggle<CR>", "Toggle Neo-tree" },
   t = { "<cmd>ToggleTerminal<CR>", "Open Terminal" }
 }, { prefix = "<leader>" })
-
