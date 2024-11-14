@@ -277,16 +277,6 @@ vim.cmd([[
     autocmd BufWritePost *.cpp,*.py,*.md lua vim.diagnostic.hide() -- Clears diagnostics after display
 ]])
 
--- null-ls config
-local null_ls = require("null-ls")
-
-null_ls.setup({
-    sources = {
-        null_ls.builtins.diagnostics.codespell,      -- For typos
-        null_ls.builtins.diagnostics.markdownlint,   -- For markdown linting
-    },
-})
-
 
 -- Register which-key mappings
 local wk = require("which-key")
