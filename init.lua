@@ -139,6 +139,36 @@ require("lazy").setup({
     end,
   },
   {
+        'neovim/nvim-lspconfig',
+        config = function()
+            local lspconfig = require("lspconfig")
+            
+            -- Setup for Python (pyright) and C++ (clangd)
+            lspconfig.pyright.setup({})
+            lspconfig.clangd.setup({})
+            
+            -- Diagnostics configurations
+            vim.diagnostic.config({
+                virtual_text = true,  -- Display error messages inline
+                signs = true,         -- Show error signs in the gutter
+                update_in_insert = false,  -- Only update diagnostics when not in insert mode
+            })
+        end,
+    },
+   {
+        "mfussenegger/nvim-lint",
+        config = function()
+            require('lint').linters_by_ft = {
+                cpp = { 'cppcheck' },        -- Linter for C++
+                python = { 'flake8' },       -- Linter for Python
+            }
+            -- Auto-lint on save
+            vim.cmd([[
+                autocmd BufWritePost *.cpp,*.py lua require('lint').try_lint()
+            ]])
+        end,
+    }, 
+    {
     "folke/noice.nvim",
     dependencies = {
       "MunifTanjim/nui.nvim",
@@ -156,6 +186,20 @@ require("lazy").setup({
           bottom_search = true,
           command_palette = true,
           long_message_to_split = true,
+        },
+        routes = {
+          -- Route to display error messages after compilation
+          {
+            filter = { event = "msg_show", kind = "error" },
+            opts = {
+              skip = false,
+              title = "Compilation Error",
+              icon = " ", -- Add an icon for visibility (optional)
+              message = function(msg)
+                return "Error: " .. msg -- Customize message format
+              end,
+            },
+          },
         },
       })
     end,
@@ -227,19 +271,36 @@ function run_cpp_file()
   end
 end
 
+-- Automatically lint and clear diagnostics on save
+vim.cmd([[
+    autocmd BufWritePost *.cpp,*.py,*.md lua require('lint').try_lint()
+    autocmd BufWritePost *.cpp,*.py,*.md lua vim.diagnostic.hide() -- Clears diagnostics after display
+]])
+
+-- null-ls config
+local null_ls = require("null-ls")
+
+null_ls.setup({
+    sources = {
+        null_ls.builtins.diagnostics.codespell,      -- For typos
+        null_ls.builtins.diagnostics.markdownlint,   -- For markdown linting
+    },
+})
+
+
 -- Register which-key mappings
 local wk = require("which-key")
 
 wk.register({
   w = { ":w<CR>", "Save File" },
+  r = { ":w | !python3 %<CR>", "Run Python File" },
+  c = { ":lua run_cpp_file()<CR>", "Run C++ File" },
   q = { ":wq<CR>", "Save and Exit" },
   m = {
     name = "Markdown",
     o = { ":MarkdownPreview<CR>", "Open Markdown Preview" },
     t = { "<cmd>MarkdownPreviewToggle<CR>", "Toggle Markdown Preview" },
   },
-  r = { ":w | !python3 %<CR>", "Run Python File" },
-  c = { ":lua run_cpp_file()<CR>", "Run C++ File" },
   n = { ":w | !node %<CR>", "Run Node.js File" },
   d = { ":Dashboard<CR>", "Return to Dashboard" },
   e = { "<cmd>Neotree toggle<CR>", "Toggle Neo-tree" },
