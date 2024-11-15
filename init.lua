@@ -203,6 +203,12 @@ require("lazy").setup({
         },
       })
     end,
+  },
+  {
+    "folke/todo-comments.nvim",
+    config = function()
+      require("todo-comments").setup()
+    end,
   }
 })
 
@@ -263,6 +269,17 @@ end, { desc = 'Show Recently Opened Files with Telescope' })
 -- ToggleTerm setup for running C++ files in a floating terminal
 local toggleterm = require("toggleterm.terminal").Terminal
 
+function _G.close_current_terminal()
+  local current_buf = vim.api.nvim_get_current_buf()
+  -- Check if the current buffer is a terminal
+  if vim.bo[current_buf].filetype == "toggleterm" then
+    vim.cmd("bdelete!") -- Close the current terminal buffer
+  else
+    print("Not a terminal window")
+  end
+end
+
+
 function run_cpp_file()
   vim.cmd("w")  -- Save the file
   local compile_cmd = "g++ " .. vim.fn.expand("%") .. " -o " .. vim.fn.expand("%:r")
@@ -296,6 +313,24 @@ vim.cmd([[highlight ColorColumn ctermbg=0 guibg=red]])   -- Customize the color
 vim.opt.tabstop = 4      -- Number of spaces that a <Tab> in the file counts for
 vim.opt.shiftwidth = 4   -- Number of spaces to use for each step of (auto)indent
 vim.opt.expandtab = true -- Convert tabs to spaces
+
+-- Ensure toggleterm.nvim is loaded
+local Terminal = require("toggleterm.terminal").Terminal
+
+-- Create a custom terminal instance with specified options
+local mst_terminal = Terminal:new({
+  direction = "vertical",
+  size = 30, -- Adjust the width as needed
+  on_open = function(term)
+    -- Send 'mst' command to the terminal when it opens
+    vim.api.nvim_feedkeys("mst\n", "n", false)
+  end,
+})
+
+-- Function to toggle the custom terminal
+function _G.open_right_terminal_with_mst()
+  mst_terminal:toggle()
+end
 
 -- Function for Markdown -> PDF
 local function markdown_to_pdf()
@@ -360,5 +395,20 @@ wk.register({
   n = { ":w | !node %<CR>", "Run Node.js File" },
   d = { ":Dashboard<CR>", "Return to Dashboard" },
   e = { "<cmd>Neotree toggle<CR>", "Toggle Neo-tree" },
-  t = { "<cmd>ToggleTerminal<CR>", "Open Terminal" }
+  t = {
+    name = "Terminal",
+    t = { "<cmd>ToggleTerminal<CR>", "Open Terminal" },
+    r = { "<cmd>lua open_right_terminal_with_mst()<CR>", "Open Split with Mistral" },
+    c = { "<cmd>ToggleTermToggleAll<CR>", "Close All Terminals" },
+    x = { "<cmd>lua close_current_terminal()<CR>", "Close Current Terminal" },
+  },
+  -- Todo-comments.nvim mappings
+  T = {
+    name = "Todo",
+    a = { "<cmd>TodoTrouble<cr>", "Show Todos in Trouble" },
+    f = { "<cmd>TodoTelescope<cr>", "Find Todos" },
+    n = { "<cmd>TodoNext<cr>", "Next Todo" },
+    p = { "<cmd>TodoPrev<cr>", "Previous Todo" },
+    t = { "<cmd>TodoToggle<cr>", "Toggle Todo Highlighting" },
+  },
 }, { prefix = "<leader>" })
