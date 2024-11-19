@@ -87,7 +87,25 @@ require("lazy").setup({
         },
       }
     end
-  },
+  },{
+    'numToStr/Comment.nvim',
+    config = function()
+        require('Comment').setup({
+            -- Add your custom configuration here
+            toggler = {
+                line = 'gcc', -- Line comment toggle keymap
+                block = 'gbc', -- Block comment toggle keymap
+            },
+            opleader = {
+                line = 'gc', -- Line comment keymap
+                block = 'gb', -- Block comment keymap
+            },
+            mappings = true, -- Enable default keybindings
+            pre_hook = nil, -- Add pre-hook for integration with Treesitter or LSP
+            post_hook = nil, -- Add post-hook if needed
+        })
+    end
+},
    {
     'akinsho/toggleterm.nvim',
     config = function()
@@ -236,6 +254,30 @@ Summary: Enter summary here.
   end,
 })
 
+vim.api.nvim_create_user_command("WordCount", function()
+    -- Get the current buffer number
+    local bufnr = vim.api.nvim_get_current_buf()
+    -- Get all lines in the buffer
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+    -- Initialize word count
+    local word_count = 0
+
+    -- Iterate through each line
+    for _, line in ipairs(lines) do
+        -- Skip empty or whitespace-only lines
+        if vim.trim(line) ~= "" then
+            -- Count words in the line
+            local words = vim.fn.split(vim.trim(line), "\\s+")
+            word_count = word_count + #words
+        end
+    end
+
+    -- Display the word count using vim.notify
+    vim.notify("Word Count: " .. word_count, vim.log.levels.INFO, { title = "Word Count" })
+end, { desc = "Counts words in the current buffer and displays the result" })
+
+
 -- Copy and paste from wez to other apps
 vim.api.nvim_set_option("clipboard", "unnamed")
 
@@ -303,6 +345,21 @@ end
 vim.cmd([[
     autocmd BufWritePost *.cpp,*.py,*.md lua require('lint').try_lint()
     autocmd BufWritePost *.cpp,*.py,*.md lua vim.diagnostic.hide() -- Clears diagnostics after display
+]])
+
+-- Enable spell checking for specific file types
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = { "markdown", "text", "gitcommit" }, -- Add other file types as needed
+    callback = function()
+        vim.opt_local.spell = true
+        vim.opt_local.spelllang = "en"
+    end,
+})
+
+-- Custom highlighting for spelling errors
+vim.cmd([[
+highlight clear SpellBad
+highlight SpellBad cterm=underline ctermfg=Red guibg=None guifg=Red
 ]])
 
 -- Set color bar at :80 characters
@@ -376,7 +433,30 @@ local function markdown_to_pdf()
     })
 end
 
--- Register which-key mappings
+local noice = require("noice")
+
+-- Function to notify about misspelled words
+local function notify_spell_error()
+    if vim.wo.spell then
+        local line = vim.api.nvim_get_current_line()
+        local cursor_pos = vim.api.nvim_win_get_cursor(0)
+        local col = cursor_pos[2]
+        local word = vim.fn.matchstr(line:sub(1, col + 1), "\\k*$")
+            .. vim.fn.matchstr(line:sub(col + 2), "^\\k*")
+
+        if word ~= "" and vim.fn.spellbadword(word)[1] ~= "" then
+            noice.notify("Misspelled Word: " .. word, "warn", {
+                title = "Spell Check",
+            })
+        end
+    end
+end
+
+-- Call function on CursorHold for real-time updates
+vim.api.nvim_create_autocmd("CursorHold", {
+    callback = notify_spell_error,
+})
+
 local wk = require("which-key")
 
 wk.register({
@@ -402,7 +482,6 @@ wk.register({
     c = { "<cmd>ToggleTermToggleAll<CR>", "Close All Terminals" },
     x = { "<cmd>lua close_current_terminal()<CR>", "Close Current Terminal" },
   },
-  -- Todo-comments.nvim mappings
   T = {
     name = "Todo",
     a = { "<cmd>TodoTrouble<cr>", "Show Todos in Trouble" },
@@ -411,4 +490,18 @@ wk.register({
     p = { "<cmd>TodoPrev<cr>", "Previous Todo" },
     t = { "<cmd>TodoToggle<cr>", "Toggle Todo Highlighting" },
   },
+  W = {
+    name = "Word Count",
+    c = { ":WordCount<CR>", "Show Word Count" },
+  },
+  s = {
+    name = "Spell Check", -- Spell-check-related commands
+    t = { ":set spell!<CR>", "Toggle Spell Check" },
+    n = { "]s", "Next Spelling Error" },
+    p = { "[s", "Previous Spelling Error" },
+    s = { "z=", "Suggestions for Word" },
+    a = { "zg", "Add Word to Dictionary" },
+    r = { "zw", "Remove Word from Dictionary" },
+  },
 }, { prefix = "<leader>" })
+
