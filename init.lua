@@ -6,6 +6,8 @@ if not vim.loop.fs_stat(lazypath) then
   })
 end
 vim.opt.rtp:prepend(lazypath)
+vim.opt.number = true
+vim.opt.relativenumber = true
 
 -- Set leader key to space
 vim.g.mapleader = " "
@@ -41,16 +43,51 @@ require("lazy").setup({
     end
   },
   {
-    'ayu-theme/ayu-vim',
-    config = function()
-      vim.cmd[[colorscheme ayu]]
-    end
+  "junegunn/fzf.vim",
+  dependencies = {
+    "junegunn/fzf",
+    build = ":call fzf#install()",
+  },
+  config = function()
+    -- Basic FZF configuration
+    vim.g.fzf_layout = {
+      window = {
+        width = 0.9,
+        height = 0.9,
+        border = 'rounded'
+      }
+    }
+
+    -- Custom colors to match your theme
+    vim.cmd([[
+      let g:fzf_colors = {
+        \ 'fg':      ['fg', 'Normal'],
+        \ 'bg':      ['bg', 'Normal'],
+        \ 'hl':      ['fg', 'Comment'],
+        \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
+        \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
+        \ 'hl+':     ['fg', 'Statement'],
+        \ 'info':    ['fg', 'PreProc'],
+        \ 'border':  ['fg', 'Ignore'],
+        \ 'prompt':  ['fg', 'Conditional'],
+        \ 'pointer': ['fg', 'Exception'],
+        \ 'marker':  ['fg', 'Keyword'],
+        \ 'spinner': ['fg', 'Label'],
+        \ 'header':  ['fg', 'Comment']
+      \ }
+    ]])
+  end
+    },
+  {
+    "scottmckendry/cyberdream.nvim",
+    lazy = false,
+    priority = 1000,
   },
   {
     'nvim-lualine/lualine.nvim',
     config = function()
       require('lualine').setup({
-        options = { theme = 'ayu' },
+        options = { theme = 'auto' },
         sections = {
           lualine_a = {'mode'},
           lualine_b = {'branch'},
@@ -87,7 +124,14 @@ require("lazy").setup({
         },
       }
     end
-  },{
+  },
+  {
+        'stevearc/oil.nvim',
+        config = function()
+            require("oil").setup()
+        end
+    },
+  {
     'numToStr/Comment.nvim',
     config = function()
         require('Comment').setup({
@@ -122,14 +166,15 @@ require("lazy").setup({
       })
     end
   },
-  {
-    "iamcco/markdown-preview.nvim",
-    build = "cd app && npm install",
-    ft = "markdown",
-    config = function()
-      vim.g.mkdp_auto_start = 1  -- Start preview automatically
-    end
-  },
+ {
+        'iamcco/markdown-preview.nvim',
+        build = 'cd app && npm install', -- Ensures dependencies are installed
+        ft = 'markdown',                -- Lazy load for markdown files
+        config = function()
+            vim.g.mkdp_auto_start = 0   -- Prevent auto-start
+            vim.g.mkdp_auto_close = 1   -- Close preview on buffer switch
+        end
+    }, 
   {
     "nvim-neo-tree/neo-tree.nvim",
     branch = "v2.x",
@@ -281,6 +326,16 @@ end, { desc = "Counts words in the current buffer and displays the result" })
 -- Copy and paste from wez to other apps
 vim.api.nvim_set_option("clipboard", "unnamed")
 
+-- Function to run Go files
+function RunGoFile()
+    local filepath = vim.fn.expand('%:p') -- Get the full path of the current file
+    if vim.bo.filetype == "go" then
+        vim.cmd("!go run " .. filepath)
+    else
+        print("Not a Go file!")
+    end
+end
+
 -- PDF Viewer
 vim.api.nvim_create_user_command('ViewPDF', function()
   local file = vim.fn.expand('%:p')  -- Get the full file path
@@ -341,6 +396,21 @@ function run_cpp_file()
   end
 end
 
+-- Runs the TODO file in a toggle term window
+local function run_specific_cpp_file()
+    local filepath = "/Users/ashwinnair/Dropbox/LoyolaCoursework/Fall2024/COSC-A211/final_project/main.cpp" 
+    local compile_cmd = "g++ -std=c++17 -Wall -o temp_exec " .. filepath
+    local run_cmd = "./temp_exec"
+
+    vim.notify("Opened ToDo List!")
+    -- Open a floating terminal and execute the commands
+    require("toggleterm.terminal").Terminal:new({
+        cmd = compile_cmd .. " && " .. run_cmd,
+        direction = "float",
+        close_on_exit = false, -- Keeps the terminal open after running
+    }):toggle()
+end
+
 -- Automatically lint and clear diagnostics on save
 vim.cmd([[
     autocmd BufWritePost *.cpp,*.py,*.md lua require('lint').try_lint()
@@ -354,6 +424,24 @@ vim.api.nvim_create_autocmd("FileType", {
         vim.opt_local.spell = true
         vim.opt_local.spelllang = "en"
     end,
+})
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "fzf",
+  callback = function()
+    -- Make FZF window more prominent
+    vim.opt_local.number = false
+    vim.opt_local.relativenumber = false
+    -- Hide statusline in fzf buffer
+    vim.opt_local.laststatus = 0
+    -- Return to normal laststatus after closing fzf
+    vim.api.nvim_create_autocmd("BufLeave", {
+      buffer = 0,
+      callback = function()
+        vim.opt_local.laststatus = 2
+      end
+    })
+  end
 })
 
 -- Custom highlighting for spelling errors
@@ -452,6 +540,11 @@ local function notify_spell_error()
     end
 end
 
+-- Define a custom command for toggling Markdown preview
+vim.api.nvim_create_user_command('MarkdownPreviewToggle', function()
+    vim.cmd("MarkdownPreviewToggle") -- Use the plugin's built-in toggle
+end, { desc = "Toggle Markdown Preview" })
+
 -- Call function on CursorHold for real-time updates
 vim.api.nvim_create_autocmd("CursorHold", {
     callback = notify_spell_error,
@@ -461,8 +554,15 @@ local wk = require("which-key")
 
 wk.register({
   w = { ":w<CR>", "Save File" },
-  r = { ":w | !python3 %<CR>", "Run Python File" },
-  c = { ":lua run_cpp_file()<CR>", "Run C++ File" },
+  g = { "<cmd>Oil<cr>", "Open Oil File Explorer" },
+  r = { 
+        name = "Run",
+        p = {":w | !python3 %<CR>", "Run Python File"},
+        c = {":lua run_cpp_file()<CR>", "Run C++ File"},
+        n = {":w | !node %<CR>", "Run Node.js File" },
+        t = { run_specific_cpp_file, "Run ToDo in Fall 2024"},
+        g = { ":lua RunGoFile()<CR>", "Run Go File" },
+    },
   q = { ":wq<CR>", "Save and Exit" },
   v = { ":ViewPDF<CR>", "View PDF" },
   m = {
@@ -472,7 +572,7 @@ wk.register({
     c = { markdown_to_pdf, "Convert Markdown to PDF" },
     v = { view_pdf, "View PDF" }
   },
-  n = { ":w | !node %<CR>", "Run Node.js File" },
+  n = { },
   d = { ":Dashboard<CR>", "Return to Dashboard" },
   e = { "<cmd>Neotree toggle<CR>", "Toggle Neo-tree" },
   t = {
@@ -503,5 +603,18 @@ wk.register({
     a = { "zg", "Add Word to Dictionary" },
     r = { "zw", "Remove Word from Dictionary" },
   },
+   f = {
+    name = "Find (FZF)",
+    f = { ":Files<CR>", "Find files" },
+    g = { ":Rg<CR>", "Find text" },
+    b = { ":Buffers<CR>", "Find buffers" },
+    h = { ":History<CR>", "Find history" },
+    c = { ":Commits<CR>", "Find commits" },
+    l = { ":BLines<CR>", "Find in current buffer" },
+    m = { ":Maps<CR>", "Find keymaps" },
+    w = { ":Windows<CR>", "Find windows" },
+    t = { ":Tags<CR>", "Find tags" },
+    ["/"] = { ":History/<CR>", "Find search history" },
+    ["'"] = { ":Marks<CR>", "Find marks" },
+  },
 }, { prefix = "<leader>" })
-
