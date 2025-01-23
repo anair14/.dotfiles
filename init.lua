@@ -43,6 +43,27 @@ require("lazy").setup({
     end
   },
   {
+        "andweeb/presence.nvim",
+        config = function()
+            require("presence").setup({
+                -- configuration options
+                auto_update = true,   -- Automatically update presence
+                neovim_image_text = "The One True Text Editor",  -- Text displayed for Neovim
+                main_image = "neovim",  -- Main image used for RPC (can use other sources like 'file', 'text', etc.)
+                large_image_text = "neovim",
+                edit_mode = "false",
+                enable_line_number = true,
+                client_id = "1330968227001532560",  -- You'll need to create a Discord application to get this ID
+                log_level = "info",    -- Log level for RPC updates
+                editing_text = "Editing %s",  -- Shows the file you're editing
+                file_explorer_text = "Browsing %s",
+                reading_text = "Reading %s",
+                plugin_manager_text = "Managing Plugins",
+                line_number_text = "Line %s out of %s"
+            })
+        end
+    },
+  {
   "junegunn/fzf.vim",
   dependencies = {
     "junegunn/fzf",
@@ -123,6 +144,11 @@ require("lazy").setup({
           margin = { 1, 0, 1, 0 },
         },
       }
+    end
+  },
+{
+    "morhetz/gruvbox",
+    config = function()
     end
   },
   {
@@ -277,15 +303,15 @@ require("lazy").setup({
 
 -- Creates banner for .cpp files
 vim.api.nvim_create_autocmd("BufNewFile", {
-  pattern = "*.cpp",
+  pattern = { "*.cpp", "*.py", "*.md" },
   callback = function()
-    -- Get the current date
     local date = os.date("%Y-%m-%d")
-    -- Get the filename
     local filename = vim.fn.expand("%:t")
+    local banner
 
-    -- Define the banner template
-    local banner = string.format([[
+    if vim.bo.filetype == "cpp" then
+      -- C++ file banner
+      banner = string.format([[
 /*****************************
 Author: Ashwin Nair
 Date: %s
@@ -294,10 +320,39 @@ Summary: Enter summary here.
 *****************************/
 ]], date, filename)
 
+    elseif vim.bo.filetype == "python" then
+      -- Python file banner
+      banner = string.format([[
+"""
+Author: Ashwin Nair
+Date: %s
+Project name: %s
+Summary: Enter summary here.
+"""
+]], date, filename)
+
+    elseif vim.bo.filetype == "markdown" then
+      -- Markdown file banner
+      banner = string.format([[
+<!--
+Author: Ashwin Nair
+Date: %s
+Project name: %s
+Summary: Enter summary here.
+-->
+]], date, filename)
+    end
+
     -- Insert the banner at the top of the file
-    vim.api.nvim_buf_set_lines(0, 0, 0, false, vim.split(banner, "\n"))
+    if banner then
+      vim.api.nvim_buf_set_lines(0, 0, 0, false, vim.split(banner, "\n"))
+    end
   end,
 })
+
+
+-- Set colorscheme to gruvbox
+vim.cmd("colorscheme gruvbox")
 
 vim.api.nvim_create_user_command("WordCount", function()
     -- Get the current buffer number
@@ -325,6 +380,17 @@ end, { desc = "Counts words in the current buffer and displays the result" })
 
 -- Copy and paste from wez to other apps
 vim.api.nvim_set_option("clipboard", "unnamed")
+
+-- Function to switch theme and notify with Noice
+local function set_theme(mode)
+  if mode == "dark" then
+    vim.opt.background = "dark"
+    require("noice").notify("Switched to Gruvbox Dark Mode", "info")
+  elseif mode == "light" then
+    vim.opt.background = "light"
+    require("noice").notify("Switched to Gruvbox Light Mode", "info")
+  end
+end
 
 -- Function to run Go files
 function RunGoFile()
@@ -488,8 +554,16 @@ local function markdown_to_pdf()
     local pdf_name = vim.fn.input("Enter PDF name (without .pdf extension): ") .. ".pdf"
     local pdf_path = vim.fn.expand("%:p:h") .. "/" .. pdf_name
 
-    -- Run Pandoc with `wkhtmltopdf` as the PDF engine
-    vim.fn.jobstart({"pandoc", file_path, "-t", "html5", "--pdf-engine=wkhtmltopdf", "-o", pdf_path}, {
+    -- Pandoc command with xelatex for font customization
+    local command = {
+        "pandoc", file_path,
+        "--pdf-engine=xelatex",
+        "-o", pdf_path,
+        "-V", "mainfont=Times New Roman",
+        "-V", "fontsize=12pt"
+    }
+
+    vim.fn.jobstart(command, {
         stdout_buffered = true,
         stderr_buffered = true,
         on_stdout = function(_, data)
@@ -520,6 +594,7 @@ local function markdown_to_pdf()
         end,
     })
 end
+
 
 local noice = require("noice")
 
@@ -617,4 +692,10 @@ wk.register({
     ["/"] = { ":History/<CR>", "Find search history" },
     ["'"] = { ":Marks<CR>", "Find marks" },
   },
+    l = {
+    name = "Theme",
+    d = { function() set_theme("dark") end, "Switch to Dark Mode" },
+    l = { function() set_theme("light") end, "Switch to Light Mode" }
+  }
 }, { prefix = "<leader>" })
+
