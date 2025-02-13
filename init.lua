@@ -15,19 +15,20 @@ vim.g.mapleader = " "
 -- Lazy.nvim setup
 require("lazy").setup({
   -- Dashboard Plugin Setup
-  {
+   {
     'glepnir/dashboard-nvim',
     lazy = false,
     config = function()
       local dashboard = require("dashboard")
       dashboard.custom_header = {
-        "    N   N   V   V   K   K   ",
-        "    NN  N   V   V   K  K    ",
-        "    N N N   V   V   K K     ",
-        "    N  NN   V V    KK       ",
-        "    N   N   V V    K K      ",
-        "    N   N   V V    K  K     ",
-        "    N   N   V V    K   K    "
+        "      .--.      .--.      .--.      ",
+        "     |    |    |    |    |    |     ",
+        "     |    |    |    |    |    |     ",
+        "     '.__.'    '.__.'    '.__.'     ",
+        "      .--.      .--.      .--.      ",
+        "     |    |    |    |    |    |     ",
+        "     |    |    |    |    |    |     ",
+        "     '.__.'    '.__.'    '.__.'     "
       }
       dashboard.custom_footer = function()
         return "NVK - Time: " .. os.date('%H:%M:%S')
@@ -41,8 +42,7 @@ require("lazy").setup({
       dashboard.hide_statusline = 1
       dashboard.hide_tabline = 1
     end
-  },
-  {
+  }, {
         "andweeb/presence.nvim",
         config = function()
             require("presence").setup({
@@ -392,6 +392,24 @@ local function set_theme(mode)
   end
 end
 
+-- Function to scan the current file and get suggestions from DeepSeek
+local function scan_with_deepseek()
+    local file_path = vim.fn.expand('%:p') -- Get the full file path
+    if file_path == "" or vim.bo.filetype == "" then
+        vim.notify("No file selected!", vim.log.levels.WARN)
+        return
+    end
+
+    local deepseek_cmd = "ollama run nezahatkorkmaz/deepseek-v3 < " .. file_path
+
+    -- Open ToggleTerm and run DeepSeek command
+    require("toggleterm.terminal").Terminal:new({
+        cmd = deepseek_cmd,
+        direction = "horizontal", -- Opens in a horizontal split (you can change to "float" or "vertical")
+        close_on_exit = false,    -- Keeps the terminal open after execution
+    }):toggle()
+end
+
 -- Function to run Go files
 function RunGoFile()
     local filepath = vim.fn.expand('%:p') -- Get the full path of the current file
@@ -442,6 +460,16 @@ function _G.close_current_terminal()
   end
 end
 
+local function run_java()
+  local file = vim.fn.expand("%:p") -- Full path of the current file
+  local class_name = vim.fn.expand("%:t:r") -- Extract class name without extension
+  local compile_run_cmd = "javac " .. file .. " && java " .. class_name
+  require("toggleterm.terminal").Terminal:new({
+    cmd = compile_run_cmd,
+    direction = "float",
+    close_on_exit = false
+  }):toggle()
+end
 
 function run_cpp_file()
   vim.cmd("w")  -- Save the file
@@ -475,6 +503,13 @@ local function run_specific_cpp_file()
         direction = "float",
         close_on_exit = false, -- Keeps the terminal open after running
     }):toggle()
+end
+
+-- Runs java file.
+local function run_java()
+  local file = vim.fn.expand("%:p") -- Get the full path of the current file
+  local compile_run_cmd = "javac " .. file .. " && java " .. vim.fn.expand("%:t:r")
+  require("toggleterm").exec(compile_run_cmd, 1, 12, false) -- Run in toggleterm
 end
 
 -- Automatically lint and clear diagnostics on save
@@ -637,6 +672,7 @@ wk.register({
         n = {":w | !node %<CR>", "Run Node.js File" },
         t = { run_specific_cpp_file, "Run ToDo in Fall 2024"},
         g = { ":lua RunGoFile()<CR>", "Run Go File" },
+        j = { run_java, "Run Java File" }
     },
   q = { ":wq<CR>", "Save and Exit" },
   v = { ":ViewPDF<CR>", "View PDF" },
@@ -656,6 +692,7 @@ wk.register({
     r = { "<cmd>lua open_right_terminal_with_mst()<CR>", "Open Split with Mistral" },
     c = { "<cmd>ToggleTermToggleAll<CR>", "Close All Terminals" },
     x = { "<cmd>lua close_current_terminal()<CR>", "Close Current Terminal" },
+    d = { scan_with_deepseek, "Scan with Deepseek" }
   },
   T = {
     name = "Todo",
@@ -689,8 +726,9 @@ wk.register({
     m = { ":Maps<CR>", "Find keymaps" },
     w = { ":Windows<CR>", "Find windows" },
     t = { ":Tags<CR>", "Find tags" },
+    r = { ":OldFiles<CR>", "Find Recent Files" },
     ["/"] = { ":History/<CR>", "Find search history" },
-    ["'"] = { ":Marks<CR>", "Find marks" },
+    ["'"] = { ":Marks<CR>", "Find marks" }
   },
     l = {
     name = "Theme",
@@ -698,4 +736,3 @@ wk.register({
     l = { function() set_theme("light") end, "Switch to Light Mode" }
   }
 }, { prefix = "<leader>" })
-
