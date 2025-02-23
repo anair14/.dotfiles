@@ -16,32 +16,112 @@ vim.g.mapleader = " "
 require("lazy").setup({
   -- Dashboard Plugin Setup
    {
-    'glepnir/dashboard-nvim',
-    lazy = false,
-    config = function()
-      local dashboard = require("dashboard")
-      dashboard.custom_header = {
-        "      .--.      .--.      .--.      ",
-        "     |    |    |    |    |    |     ",
-        "     |    |    |    |    |    |     ",
-        "     '.__.'    '.__.'    '.__.'     ",
-        "      .--.      .--.      .--.      ",
-        "     |    |    |    |    |    |     ",
-        "     |    |    |    |    |    |     ",
-        "     '.__.'    '.__.'    '.__.'     "
-      }
-      dashboard.custom_footer = function()
-        return "NVK - Time: " .. os.date('%H:%M:%S')
-      end
-      dashboard.custom_center = {
-        {icon = '  ', desc = 'Find File', action = 'Telescope find_files'},
-        {icon = '  ', desc = 'File Explorer', action = 'NvimTreeToggle'},
-        {icon = '  ', desc = 'Configuration', action = 'edit ~/.config/nvim/init.lua'},
-        {icon = '  ', desc = 'Update Plugins', action = 'Lazy sync'}
-      }
-      dashboard.hide_statusline = 1
-      dashboard.hide_tabline = 1
-    end
+  "hrsh7th/nvim-cmp",
+  dependencies = {
+    "hrsh7th/cmp-nvim-lsp",
+    "neovim/nvim-lspconfig", -- LSP for better suggestions
+    "jose-elias-alvarez/null-ls.nvim", -- For additional formatting & linting
+    "nvim-lua/plenary.nvim", -- Required for null-ls
+  },
+  config = function()
+    -- Setup nvim-cmp for autocompletion
+    local cmp = require("cmp")
+    cmp.setup({
+      mapping = cmp.mapping.preset.insert({
+        ["<Tab>"] = cmp.mapping.select_next_item(),
+        ["<S-Tab>"] = cmp.mapping.select_prev_item(),
+        ["<CR>"] = cmp.mapping.confirm({ select = true }), -- Confirm selection
+      }),
+      sources = {
+        { name = "nvim_lsp" }, -- Use LSP as the source
+        { name = "buffer" },   -- Autocomplete words in the file
+        { name = "path" },     -- Autocomplete paths
+      },
+    })
+
+    -- Setup LSP for JavaScript (tsserver)
+    local lspconfig = require("lspconfig")
+    lspconfig.tsserver.setup({
+      capabilities = require("cmp_nvim_lsp").default_capabilities(),
+    })
+
+    -- Setup null-ls for linting & formatting (ESLint, Prettier)
+    local null_ls = require("null-ls")
+    null_ls.setup({
+      sources = {
+        null_ls.builtins.formatting.prettier, -- Auto-format JavaScript files
+        null_ls.builtins.diagnostics.eslint_d, -- Lint JavaScript using ESLint
+      },
+    })
+  end,
+}, {
+    "glepnir/dashboard-nvim",
+	event = "VimEnter",
+	config = function()
+		require("dashboard").setup({
+			config = {
+				header = {
+					"                                                                                                    ",
+					"                                                                                                    ",
+					"                                                                                                    ",
+					"                         .^!^                                           .!~:                        ",
+					"                    ^!JPB&B7.                                            !&&BPJ!:                   ",
+					"                ^?P#@@@@@G.                   :       :                   ~@@@@@&B5!:               ",
+					"             ^JB@@@@@@@@@7                   .#~     ?G                   .&@@@@@@@@&G?:            ",
+					"          .7G@@@@@@@@@@@@#!                  7@&^   ~@@^                 .5@@@@@@@@@@@@@G7.         ",
+					"        .?#@@@@@@@@@@@@@@@@BY!^.             B@@&BBB&@@Y              :~Y#@@@@@@@@@@@@@@@@#?.       ",
+					"       !#@@@@@@@@@@@@@@@@@@@@@@#G5Y?!~^:..  ~@@@@@@@@@@#.   ..::^!7J5B&@@@@@@@@@@@@@@@@@@@@@#!      ",
+					"     .5@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&&##B#@@@@@@@@@@@BBBB##&&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Y     ",
+					"    :B@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@5    ",
+					"   .B@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@J   ",
+					"   5@&#BGGPPPPPGGB&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&BGGP555PPGBB#&#:  ",
+					"   ^:.            .^!YB@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&57^.            .:^.  ",
+					"                       ~G@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@5:                      ",
+					"                         P@@@#BGGGGB#@@@@@@@@@@@@@@@@@@@@@@@@@#BP5555PG#@@@P                        ",
+					"                         :J!:.      .^!JG&@@@@@@@@@@@@@@@@#57^.        .:!5~                        ",
+					"                                         :?G@@@@@@@@@@@@P!.                                         ",
+					"                                            ~5@@@@@@@@5^                                            ",
+					"                                              ^P@@@@G^                                              ",
+					"                                                !#@?                                                ",
+					"                                                 :^                                                 ",
+					"                                                                                                    ",
+					"                                                                                                    ",
+					"                                                                                                    ",
+
+				},
+				footer = {},
+				packages = { enable = false },
+				project = {
+					enable = false,
+				},
+				mru = {
+					limit = 5,
+				},
+	shortcut = {
+    { desc = " Update", group = "@property", action = "Lazy update", key = "u" },
+    {
+        icon = " ",
+        desc = "Files",
+        group = "@property",
+        action = ":FzfFiles<CR>",
+        key = "f",
+    },
+    {
+        desc = " Grep",
+        group = "@property",
+        action = ":FzfRg<CR>",
+        key = "g",
+    },
+    {
+        desc = " Exit",
+        group = "@property",
+        action = "qa",
+        key = "q",
+    },
+},
+			},
+		})
+	end,
   }, {
         "andweeb/presence.nvim",
         config = function()
@@ -49,7 +129,7 @@ require("lazy").setup({
                 -- configuration options
                 auto_update = true,   -- Automatically update presence
                 neovim_image_text = "The One True Text Editor",  -- Text displayed for Neovim
-                main_image = "neovim",  -- Main image used for RPC (can use other sources like 'file', 'text', etc.)
+                main_image = "file",  -- Main image used for RPC (can use other sources like 'file', 'text', etc.)
                 large_image_text = "neovim",
                 edit_mode = "false",
                 enable_line_number = true,
@@ -150,8 +230,10 @@ require("lazy").setup({
     "morhetz/gruvbox",
     config = function()
     end
-  },
-  {
+  },{ 'dasupradyumna/midnight.nvim', 
+       lazy = false,
+       priority = 1000 }
+  ,{
         'stevearc/oil.nvim',
         config = function()
             require("oil").setup()
@@ -170,7 +252,10 @@ require("lazy").setup({
                 line = 'gc', -- Line comment keymap
                 block = 'gb', -- Block comment keymap
             },
-            mappings = true, -- Enable default keybindings
+            mappings = {
+                basic = true,
+                extra = true
+            }, -- Enable default keybindings
             pre_hook = nil, -- Add pre-hook for integration with Treesitter or LSP
             post_hook = nil, -- Add post-hook if needed
         })
@@ -231,7 +316,8 @@ require("lazy").setup({
         'neovim/nvim-lspconfig',
         config = function()
             local lspconfig = require("lspconfig")
-            
+            require("lspconfig").pyright.setup({}) -- Example: Python LSP
+            require("lspconfig").tsserver.setup({}) -- Example: TypeScript LSP 
             -- Setup for Python (pyright) and C++ (clangd)
             lspconfig.pyright.setup({})
             lspconfig.clangd.setup({})
@@ -352,7 +438,7 @@ Summary: Enter summary here.
 
 
 -- Set colorscheme to gruvbox
-vim.cmd("colorscheme gruvbox")
+vim.cmd.colorscheme 'midnight'
 
 vim.api.nvim_create_user_command("WordCount", function()
     -- Get the current buffer number
@@ -430,6 +516,14 @@ vim.api.nvim_create_user_command('ViewPDF', function()
     print("Not a PDF file!")
   end
 end, { desc = "View the current PDF file" })
+
+-- Basically sets comment.nvim and which-key to silent (they spam me :( ).
+vim.notify = function(msg, ...)
+    if msg:match("which-key") or msg:match("Comment.nvim") then
+        return
+    end
+    require("notify")(msg, ...)
+end
 
 -- Custom command to open a floating terminal and send a notification
 vim.api.nvim_create_user_command("ToggleTerminal", function()
@@ -560,6 +654,10 @@ vim.opt.tabstop = 4      -- Number of spaces that a <Tab> in the file counts for
 vim.opt.shiftwidth = 4   -- Number of spaces to use for each step of (auto)indent
 vim.opt.expandtab = true -- Convert tabs to spaces
 
+-- Autocomplete polishing?
+vim.opt.pumblend = 10 -- 0 to 100 for transparency
+vim.opt.winblend = 10  -- Make floating windows more transparent
+
 -- Ensure toggleterm.nvim is loaded
 local Terminal = require("toggleterm.terminal").Terminal
 
@@ -672,7 +770,8 @@ wk.register({
         n = {":w | !node %<CR>", "Run Node.js File" },
         t = { run_specific_cpp_file, "Run ToDo in Fall 2024"},
         g = { ":lua RunGoFile()<CR>", "Run Go File" },
-        j = { run_java, "Run Java File" }
+        j = { run_java, "Run Java File" },
+        f = { "<cmd>lua require'cmp'.complete()<CR>", "Trigger Autocomplete" }, -- Autocomplete Trigger
     },
   q = { ":wq<CR>", "Save and Exit" },
   v = { ":ViewPDF<CR>", "View PDF" },
@@ -715,7 +814,7 @@ wk.register({
     a = { "zg", "Add Word to Dictionary" },
     r = { "zw", "Remove Word from Dictionary" },
   },
-   f = {
+  f = {
     name = "Find (FZF)",
     f = { ":Files<CR>", "Find files" },
     g = { ":Rg<CR>", "Find text" },
@@ -730,7 +829,7 @@ wk.register({
     ["/"] = { ":History/<CR>", "Find search history" },
     ["'"] = { ":Marks<CR>", "Find marks" }
   },
-    l = {
+  l = {
     name = "Theme",
     d = { function() set_theme("dark") end, "Switch to Dark Mode" },
     l = { function() set_theme("light") end, "Switch to Light Mode" }
