@@ -142,7 +142,10 @@ require("lazy").setup({
                 line_number_text = "Line %s out of %s"
             })
         end
-    },
+    },{
+  "christoomey/vim-tmux-navigator",
+  lazy = false
+},
   {
   "junegunn/fzf.vim",
   dependencies = {
@@ -270,7 +273,7 @@ require("lazy").setup({
         shade_filetypes = {},
         shade_terminals = true,
         shading_factor = 2,
-        direction = "float",
+        direction = "vertical",
         float_opts = {
           border = "curved",
         },
@@ -321,6 +324,7 @@ require("lazy").setup({
             -- Setup for Python (pyright) and C++ (clangd)
             lspconfig.pyright.setup({})
             lspconfig.clangd.setup({})
+            lspconfig.gopls.setup({})
             
             -- Diagnostics configurations
             vim.diagnostic.config({
@@ -331,17 +335,19 @@ require("lazy").setup({
         end,
     },
    {
-        "mfussenegger/nvim-lint",
-        config = function()
-            require('lint').linters_by_ft = {
-                cpp = { 'cppcheck' },        -- Linter for C++
-                python = { 'flake8' },       -- Linter for Python
-            }
-            -- Auto-lint on save
-            vim.cmd([[
-                autocmd BufWritePost *.cpp,*.py lua require('lint').try_lint()
-            ]])
-        end,
+    "mfussenegger/nvim-lint",
+    config = function()
+        require('lint').linters_by_ft = {
+            cpp = { 'cppcheck' },        -- Linter for C++
+            python = { 'flake8' },       -- Linter for Python
+            go = { 'golangcilint' },     -- Linter for Go
+            java = { 'checkstyle' },     -- Linter for Java
+        }
+        -- Auto-lint on save
+        vim.cmd([[
+            autocmd BufWritePost *.cpp,*.py,*.go,*.java lua require('lint').try_lint()
+        ]])
+    end,
     }, 
     {
     "folke/noice.nvim",
@@ -389,7 +395,7 @@ require("lazy").setup({
 
 -- Creates banner for .cpp files
 vim.api.nvim_create_autocmd("BufNewFile", {
-  pattern = { "*.cpp", "*.py", "*.md" },
+  pattern = { "*.cpp", "*.py", "*.md", "*.go" },
   callback = function()
     local date = os.date("%Y-%m-%d")
     local filename = vim.fn.expand("%:t")
@@ -427,7 +433,21 @@ Project name: %s
 Summary: Enter summary here.
 -->
 ]], date, filename)
-    end
+
+   elseif vim.bo.filetype == "go" then
+    -- Go file banner
+    banner = string.format([[
+/*****************************
+Author: Ashwin Nair
+Date: %s
+Project name: %s
+Package: %s
+Summary: Enter summary here.
+*****************************/
+
+package %s
+]], date, filename, vim.fn.expand('%:t:r'), vim.fn.expand('%:t:r'))
+end
 
     -- Insert the banner at the top of the file
     if banner then
@@ -491,7 +511,7 @@ local function scan_with_deepseek()
     -- Open ToggleTerm and run DeepSeek command
     require("toggleterm.terminal").Terminal:new({
         cmd = deepseek_cmd,
-        direction = "horizontal", -- Opens in a horizontal split (you can change to "float" or "vertical")
+        direction = "vertical", -- Opens in a horizontal split (you can change to "float" or "vertical")
         close_on_exit = false,    -- Keeps the terminal open after execution
     }):toggle()
 end
@@ -558,11 +578,9 @@ local function run_java()
   local file = vim.fn.expand("%:p") -- Full path of the current file
   local class_name = vim.fn.expand("%:t:r") -- Extract class name without extension
   local compile_run_cmd = "javac " .. file .. " && java " .. class_name
-  require("toggleterm.terminal").Terminal:new({
-    cmd = compile_run_cmd,
-    direction = "float",
-    close_on_exit = false
-  }):toggle()
+  -- If using tmux instead of toggleterm
+  os.execute("tmux new-session -d '" .. compile_run_cmd .. "'")
+  os.execute("tmux attach-session -d")
 end
 
 function run_cpp_file()
@@ -600,11 +618,54 @@ local function run_specific_cpp_file()
 end
 
 -- Runs java file.
+local Terminal = require("toggleterm.terminal").Terminal
+
 local function run_java()
   local file = vim.fn.expand("%:p") -- Get the full path of the current file
-  local compile_run_cmd = "javac " .. file .. " && java " .. vim.fn.expand("%:t:r")
-  require("toggleterm").exec(compile_run_cmd, 1, 12, false) -- Run in toggleterm
+  local filename_without_ext = vim.fn.expand("%:t:r") -- Get filename without extension
+  local compile_run_cmd = "javac " .. file .. " && java " .. filename_without_ext
+
+  local java_terminal = Terminal:new({
+    cmd = compile_run_cmd,
+    direction = "float", -- or "horizontal", "vertical"
+    close_on_exit = false
+  })
+
+  java_terminal:toggle()
 end
+
+-- ColorSet
+-- For Neo-tree
+vim.cmd [[
+  highlight NeoTreeNormal guifg=#D7AF00
+  highlight NeoTreeNormalNC guifg=#D7AF00
+  highlight NeoTreeRootName guifg=#D7AF00 gui=bold
+  highlight NeoTreeFileName guifg=#D7AF00
+  highlight NeoTreeFileIcon guifg=#D7AF00
+  highlight NeoTreeFileNameOpened guifg=#D7AF00 gui=bold
+  highlight NeoTreeIndentMarker guifg=#D7AF00
+  highlight NeoTreeGitAdded guifg=#D7AF00
+  highlight NeoTreeGitModified guifg=#D7AF00
+  highlight NeoTreeGitUntracked guifg=#D7AF00
+  highlight NeoTreeDirectoryName guifg=#D7AF00
+  highlight NeoTreeDirectoryIcon guifg=#D7AF00
+]]
+
+-- For Noice notifications
+vim.cmd [[
+  highlight NoicePopup guibg=#333333 guifg=#D7AF00
+  highlight NoicePopupBorder guifg=#D7AF00
+  highlight NoicePopupTitle guifg=#D7AF00
+  highlight NoiceCmdline guifg=#D7AF00
+  highlight NoiceCmdlineIcon guifg=#D7AF00
+  highlight NoiceCmdlinePopup guibg=#333333 guifg=#D7AF00
+  highlight NoiceCmdlinePopupBorder guifg=#D7AF00
+  highlight NoiceCmdlinePrompt guifg=#D7AF00
+  highlight NoiceConfirmBorder guifg=#D7AF00
+  highlight NoiceFormatTitle guifg=#D7AF00 gui=bold
+  highlight NoiceFormatProgressDone guibg=#D7AF00 guifg=#000000
+  highlight NoiceFormatProgressTodo guibg=#333333 guifg=#D7AF00
+]]
 
 -- Automatically lint and clear diagnostics on save
 vim.cmd([[
@@ -833,5 +894,14 @@ wk.register({
     name = "Theme",
     d = { function() set_theme("dark") end, "Switch to Dark Mode" },
     l = { function() set_theme("light") end, "Switch to Light Mode" }
+  },
+  u = {
+      name = "TMUX",
+      r = { ":silent !tmux source ~/.tmux.conf<CR>", "Reload tmux config" },
+      s = { ":silent !tmux new-session -s mysession<CR>", "Start new session" },
+      a = { ":silent !tmux attach-session -t mysession<CR>", "Attach to session" },
+      k = { ":silent !tmux kill-session -t mysession<CR>", "Kill session" },
+      v = { ":silent !tmux split-window -v<CR>", "Vertical Split" },
+      h = { ":silent !tmux split-window -h<CR>", "Horizontal Split" },
   }
 }, { prefix = "<leader>" })
