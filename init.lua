@@ -617,6 +617,17 @@ local function run_specific_cpp_file()
     }):toggle()
 end
 
+-- Run Tmux Session saving protocol
+local function save_tmux_session()
+  vim.fn.system("tmux run-shell ~/.tmux/plugins/tmux-resurrect/scripts/save.sh")
+  require("noice").notify("Tmux session saved successfully!", {
+    title = "Tmux Session",
+    icon = "💾",
+    level = "success",
+    timeout = 2000,
+  })
+end
+
 -- Runs java file.
 local Terminal = require("toggleterm.terminal").Terminal
 
@@ -708,7 +719,7 @@ highlight SpellBad cterm=underline ctermfg=Red guibg=None guifg=Red
 
 -- Set color bar at :80 characters
 vim.opt.colorcolumn = "80"   -- Set color bar at the 80th column
-vim.cmd([[highlight ColorColumn ctermbg=0 guibg=red]])   -- Customize the color
+vim.cmd([[highlight ColorColumn ctermbg=0 guibg=yellow]])   -- Customize the color
 
 -- Set tab width to 4 spaces
 vim.opt.tabstop = 4      -- Number of spaces that a <Tab> in the file counts for
@@ -823,13 +834,12 @@ local wk = require("which-key")
 
 wk.register({
   w = { ":w<CR>", "Save File" },
-  g = { "<cmd>Oil<cr>", "Open Oil File Explorer" },
   r = { 
         name = "Run",
-        p = {":w | !python3 %<CR>", "Run Python File"},
-        c = {":lua run_cpp_file()<CR>", "Run C++ File"},
-        n = {":w | !node %<CR>", "Run Node.js File" },
-        t = { run_specific_cpp_file, "Run ToDo in Fall 2024"},
+        p = { ":w | !python3 %<CR>", "Run Python File" },
+        c = { ":lua run_cpp_file()<CR>", "Run C++ File" },
+        n = { ":w | !node %<CR>", "Run Node.js File" },
+        t = { run_specific_cpp_file, "Run ToDo in Fall 2024" },
         g = { ":lua RunGoFile()<CR>", "Run Go File" },
         j = { run_java, "Run Java File" },
         f = { "<cmd>lua require'cmp'.complete()<CR>", "Trigger Autocomplete" }, -- Autocomplete Trigger
@@ -896,12 +906,53 @@ wk.register({
     l = { function() set_theme("light") end, "Switch to Light Mode" }
   },
   u = {
-      name = "TMUX",
-      r = { ":silent !tmux source ~/.tmux.conf<CR>", "Reload tmux config" },
-      s = { ":silent !tmux new-session -s mysession<CR>", "Start new session" },
-      a = { ":silent !tmux attach-session -t mysession<CR>", "Attach to session" },
-      k = { ":silent !tmux kill-session -t mysession<CR>", "Kill session" },
-      v = { ":silent !tmux split-window -v<CR>", "Vertical Split" },
-      h = { ":silent !tmux split-window -h<CR>", "Horizontal Split" },
+    name = "TMUX",
+    r = { ":silent !tmux source ~/.tmux.conf<CR>", "Reload tmux config" },
+    s = { ":silent !tmux new-session -s mysession<CR>", "Start new session" },
+    a = { ":silent !tmux attach-session -t mysession<CR>", "Attach to session" },
+    k = { ":!tmux kill-session -t mysession<CR>", "Kill session" },
+    v = { ":silent !tmux split-window -v<CR>", "Vertical Split" },
+    h = { ":silent !tmux split-window -h<CR>", "Horizontal Split" },
+    e = { function() save_tmux_session() end, "Save Tmux Session" },
+    n = { ":!tmux new-window<CR>", "New window" },
+    p = { ":!tmux previous-window<CR>", "Previous window" },
+    x = { ":!tmux next-window<CR>", "Next window" },
+    d = { ":!tmux detach<CR>", "Detach session" },
+    l = { ":!tmux list-sessions<CR>", "List sessions" },
+  },
+  g = {
+    name = "Git",  -- Group name for git-related commands
+    a = {
+      function()
+        vim.cmd(":!git add .")
+        noice.notify({
+          msg = "Changes staged with Git Add",
+          level = "info",
+          timeout = 2000,  -- Duration in ms
+        })
+      end,
+      "Git Add"
+    },  -- Git add command with noice notification
+
+    c = {
+      function()
+        local commit_msg = vim.fn.input("Commit Message: ")  -- Prompt for commit message
+        if commit_msg and commit_msg ~= "" then
+          vim.cmd(":!git commit -m '" .. commit_msg .. "'")  -- Use the provided commit message
+          noice.notify({
+            msg = "Git Commit Started",
+            level = "info",
+            timeout = 2000,  -- Duration in ms
+          })
+        else
+          noice.notify({
+            msg = "Commit message is empty!",
+            level = "warn",
+            timeout = 2000,
+          })
+        end
+      end,
+      "Git Commit"
+    },  -- Git commit command with noice notification
   }
 }, { prefix = "<leader>" })
