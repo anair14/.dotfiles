@@ -12,6 +12,16 @@ vim.opt.relativenumber = true
 -- Set leader key to space
 vim.g.mapleader = " "
 
+-- Word count function for lualine
+local function word_count()
+    local wc = vim.fn.wordcount()
+    if wc["visual_words"] then
+        return wc["visual_words"] .. " words"
+    else
+        return wc["words"] .. " words"
+    end
+end
+
 -- Lazy.nvim setup
 require("lazy").setup({
   -- Dashboard Plugin Setup
@@ -195,7 +205,7 @@ require("lazy").setup({
         sections = {
           lualine_a = {'mode'},
           lualine_b = {'branch'},
-          lualine_c = {'filename'},
+          lualine_c = {'filename', word_count},
           lualine_x = {'encoding', 'fileformat', 'filetype'},
           lualine_y = {'progress'},
           lualine_z = {'location'}
@@ -874,7 +884,7 @@ wk.register({
   },
   W = {
     name = "Word Count",
-    c = { ":WordCount<CR>", "Show Word Count" },
+    c = { ":echo wordcount().words<CR>", "Show Word Count" },
   },
   s = {
     name = "Spell Check", -- Spell-check-related commands
